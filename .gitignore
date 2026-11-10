@@ -1,0 +1,20 @@
+node_modules/
+_dist/
+*.zip
+circuitsim-standalone.html
+circuitsim-standalone.zip
+.wbapp*.genie
+.workbuddy/
+.DS_Store
+
+# 工程文件与导出物
+circuit-project-*.json
+circuit-*.png
+circuit-anim-*.webm
+*.circuit.json
+*.backup
+*.bak
+
+# 本地文件
+PRIVACY.md
+push-github-api.mjs

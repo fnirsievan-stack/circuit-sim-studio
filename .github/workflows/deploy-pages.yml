@@ -1,0 +1,86 @@
+# 合并到 main 后自动构建并发布在线版
+# 只发布一个自包含的 index.html，不把源码或文档暴露成网页
+name: 构建并发布在线版
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'styles.css'
+      - 'components.js'
+      - 'custom.js'
+      - 'app.js'
+      - 'build.js'
+      - '.github/workflows/deploy-pages.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # PR 阶段：自动校验语法与构建，防止坏代码被合并
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 语法校验
+        run: |
+          node --check components.js
+          node --check custom.js
+          node --check app.js
+          node --check build.js
+      - name: 构建验证
+        run: node build.js
+
+  build:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 生成单文件版
+        run: node build.js
+      - name: 只保留一个页面作为发布产物
+        run: |
+          mkdir -p _site
+          cp circuitsim-standalone.html _site/index.html
+          find _site -type f -not -name index.html -delete
+          test -f _site/index.html
+          echo "发布产物："
+          find _site -type f
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 发布到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

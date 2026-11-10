@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>电路仿真动画工作台 · CircuitSim Studio</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">⚡</span>
+    <div class="brand-text">
+      <strong>电路仿真动画工作台</strong>
+      <small>CircuitSim Studio</small>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="btnPlay" class="btn btn-primary">▶ 播放</button>
+    <button id="btnExportVideo" class="btn">⏺ 导出视频</button>
+    <button id="btnExportPng" class="btn">🖼 导出PNG</button>
+    <span class="divider"></span>
+    <button id="btnExportProj" class="btn">📦 导出工程</button>
+    <button id="btnImportProj" class="btn">📥 导入工程</button>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
+    <span class="divider"></span>
+    <button id="btnSavePreset" class="btn">💾 保存预设</button>
+    <select id="presetSelect" class="select" title="选择预设">
+      <option value="">— 载入预设 —</option>
+    </select>
+    <button id="btnLoadPreset" class="btn">载入</button>
+    <button id="btnDeletePreset" class="btn btn-ghost">删除</button>
+    <span class="divider"></span>
+    <button id="btnClear" class="btn btn-ghost">清空</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 左侧：元件库 -->
+  <aside class="panel left">
+    <h3 class="panel-title">元件库</h3>
+    <input id="compSearch" class="input full" placeholder="🔍 搜索元件（名称 / 类型 / 封装）" />
+    <div id="catFilter" class="cat-filter"></div>
+    <div id="palette" class="palette-wrap"></div>
+    <h3 class="panel-title">工具</h3>
+    <div class="tools">
+      <button class="tool active" data-tool="select" title="选择 / 移动">🛠 选择</button>
+      <button class="tool" data-tool="wire" title="连接导线">🔌 导线</button>
+      <button class="tool" data-tool="delete" title="删除选中">🗑 删除</button>
+    </div>
+    <h3 class="panel-title">自定义元件</h3>
+    <button id="btnNewCustom" class="btn btn-primary full" style="margin-bottom:10px">＋ 新建自定义元件</button>
+    <div id="customList" class="custom-list"></div>
+    <p class="hint">提示：点元件库→画布放置，也可<b>拖拽</b>元件到画布；从元件端口<b>按住左键拖到另一端口</b>即可连线；<b>Alt+滚轮</b>缩放画布、<b>按住滚轮</b>平移；选中后可拖动、Delete 删除，Ctrl+Z 撤销。</p>
+  </aside>
+
+  <!-- 中央：画布 -->
+  <section class="stage-wrap">
+    <div class="stage-toolbar">
+      <span id="status" class="status">就绪</span>
+      <span class="spacer"></span>
+      <button id="btnUndo" class="btn btn-ghost btn-sm" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+      <button id="btnRedo" class="btn btn-ghost btn-sm" title="重做 (Ctrl+Y)">↷ 重做</button>
+      <label class="mini"><input type="checkbox" id="chkGrid" checked /> 网格</label>
+      <button id="btnFit" class="btn btn-ghost btn-sm">复位视图</button>
+    </div>
+    <div class="stage-box">
+      <canvas id="stage" width="1280" height="720"></canvas>
+      <div id="recDot" class="rec-dot hidden">● REC</div>
+      <div id="recTime" class="rec-time hidden">00:00 / 00:00</div>
+    </div>
+  </section>
+
+  <!-- 右侧：参数设置 -->
+  <aside class="panel right">
+    <div class="tabs">
+      <button class="tab active" data-tab="sel">选中元件</button>
+      <button class="tab" data-tab="global">全局设置</button>
+      <button class="tab" data-tab="preset">预设管理</button>
+    </div>
+
+    <div class="tab-body" data-body="sel">
+      <div id="selEmpty" class="empty">未选中元件。<br/>在画布中选择一个元件以编辑参数。</div>
+      <div id="selProps" class="props hidden"></div>
+    </div>
+
+    <div class="tab-body hidden" data-body="global">
+      <div class="field">
+        <label>导出分辨率</label>
+        <select id="setResolution" class="select full">
+          <option value="1080p">1080P (1920×1080)</option>
+          <option value="2k">2K (2560×1440)</option>
+          <option value="4k">4K (3840×2160)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>动画总时长：<b id="lblDuration">5.0</b> 秒</label>
+        <input type="range" id="setDuration" min="1" max="20" step="0.5" value="5" class="range" />
+      </div>
+      <div class="field">
+        <label>入场动画</label>
+        <select id="setEntrance" class="select full">
+          <option value="fade">淡入</option>
+          <option value="zoom">缩放进入</option>
+          <option value="pop">弹入（回弹）</option>
+          <option value="slide-left">从左滑入</option>
+          <option value="slide-right">从右滑入</option>
+          <option value="slide-up">从下滑入</option>
+          <option value="slide-down">从上滑入</option>
+          <option value="rotate">旋转进入</option>
+          <option value="drop">掉落入场</option>
+          <option value="flip">翻转入场</option>
+          <option value="none">无</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>出场动画</label>
+        <select id="setExit" class="select full">
+          <option value="fade">淡出</option>
+          <option value="zoom">缩放退出</option>
+          <option value="shrink">缩小消失</option>
+          <option value="slide-left">向左滑出</option>
+          <option value="slide-right">向右滑出</option>
+          <option value="slide-up">向上滑出</option>
+          <option value="slide-down">向下滑出</option>
+          <option value="rotate">旋转退出</option>
+          <option value="flip">翻转退出</option>
+          <option value="none">无</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>电流速度：<b id="lblSpeed">1.0</b>×</label>
+        <input type="range" id="setSpeed" min="0.1" max="4" step="0.1" value="1" class="range" />
+      </div>
+      <div class="field">
+        <label>电流粒子密度：<b id="lblDensity">14</b></label>
+        <input type="range" id="setDensity" min="4" max="40" step="1" value="14" class="range" />
+      </div>
+      <div class="field">
+        <label>背景颜色</label>
+        <input type="color" id="setBg" value="#0b1020" class="color" />
+      </div>
+      <div class="field">
+        <label>主色 / 导线</label>
+        <input type="color" id="setAccent" value="#36e0c8" class="color" />
+      </div>
+      <div class="field">
+        <label>电流粒子颜色</label>
+        <input type="color" id="setCurrent" value="#ffd54a" class="color" />
+      </div>
+      <div class="field">
+        <label>显示元件标签</label>
+        <input type="checkbox" id="setLabels" checked class="chk" />
+      </div>
+    </div>
+
+    <div class="tab-body hidden" data-body="preset">
+      <div class="field">
+        <label>预设名称</label>
+        <input type="text" id="presetName" class="input full" placeholder="例如：串联LED演示" />
+        <button id="btnSavePreset2" class="btn btn-primary full" style="margin-top:8px">保存到本地</button>
+      </div>
+      <div id="presetList" class="preset-list"></div>
+      <p class="hint">预设保存在浏览器 localStorage，刷新或重开页面后仍可用。</p>
+    </div>
+  </aside>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<div id="customModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head"><strong>自定义元件</strong><button id="cmClose" class="modal-x">×</button></div>
+    <div class="modal-body">
+      <div class="field"><label>名称</label><input type="text" id="cmName" class="input full" placeholder="例如：我的芯片"></div>
+      <div class="field"><label>模式</label>
+        <select id="cmMode" class="select full"><option value="svg">SVG 矢量（粘贴源码）</option><option value="image">图片上传</option></select>
+      </div>
+      <div class="field" id="cmSvgField"><label>SVG 源码</label><textarea id="cmSvg" class="input full" rows="4" placeholder="<svg ...>...</svg>"></textarea></div>
+      <div class="field hidden" id="cmImgField"><label>上传图片</label><input type="file" id="cmImg" accept="image/*"></div>
+      <div class="field"><label>符号尺寸（逻辑像素）</label><div style="display:flex;gap:8px;align-items:center">宽 <input type="number" id="cmW" class="input" value="120" style="width:80px"> 高 <input type="number" id="cmH" class="input" value="80" style="width:80px"></div></div>
+      <div class="field"><label>默认数值单位（可留空，如 Ω / V / MHz）</label><input type="text" id="cmUnit" class="input full" placeholder="Ω"></div>
+      <div class="field"><label><input type="checkbox" id="cmConducts" checked class="chk"> 参与电流导通（两端口当作负载）</label></div>
+      <div class="field"><label>端口设置：在下方预览中点击添加端口（可添加多个）</label>
+        <canvas id="cmPreview" class="cm-preview" width="240" height="160"></canvas>
+        <div id="cmTermList" class="term-list"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="cmCancel" class="btn btn-ghost">取消</button>
+      <button id="cmSave" class="btn btn-primary">保存元件</button>
+    </div>
+  </div>
+</div>
+
+<script src="components.js"></script>
+<script src="custom.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
